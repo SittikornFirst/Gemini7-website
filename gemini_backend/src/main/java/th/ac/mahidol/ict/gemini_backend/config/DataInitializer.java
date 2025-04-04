@@ -5,9 +5,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import th.ac.mahidol.ict.gemini_backend.entity.User;
 import th.ac.mahidol.ict.gemini_backend.repository.UserRepository;
+import org.springframework.boot.CommandLineRunner;
 
 @Component
-public class DataInitializer {
+
+public class DataInitializer{
 
     private final UserRepository userRepository;
 
@@ -16,6 +18,13 @@ public class DataInitializer {
         this.userRepository = userRepository;
     }
 
+//    @Override
+//    public void run(String... args) throws Exception {
+//        createTestUsers();
+//        System.out.println("✅ createTestUsers() executed.");
+//    }
+
+
     @PostConstruct
     public void initializeData() {
         // Only add test data if the repository is empty
@@ -23,6 +32,8 @@ public class DataInitializer {
             createTestUsers();
         }
     }
+
+
 
     private void createTestUsers() {
         // Create an Astronomer user

@@ -44,17 +44,19 @@ document.addEventListener('DOMContentLoaded', function() {
                         token: data.token
                     }));
 
-                    // Redirect based on user role
-                    const role = data.role;
-                    if (role === 'Astronomer') {
-                        window.location.href = 'astronomer-dashboard.html';
-                    } else if (role === 'Science Observer') {
-                        window.location.href = 'observer-dashboard.html';
-                    } else if (role === 'System Admin') {
-                        window.location.href = 'admin-dashboard.html';
-                    } else {
-                        window.location.href = 'dashboard.html';
-                    }
+                    window.location.href = 'landingPage.html'
+
+//                    // Redirect based on user role
+//                    const role = data.role;
+//                    if (role === 'Astronomer') {
+//                        window.location.href = 'la.html';
+//                    } else if (role === 'Science Observer') {
+//                        window.location.href = 'observer-dashboard.html';
+//                    } else if (role === 'System Admin') {
+//                        window.location.href = 'admin-dashboard.html';
+//                    } else {
+//                        window.location.href = 'dashboard.html';
+//                    }
                 } else {
                     // Show error message
                     errorMessage.textContent = data.message || 'Login failed. Please check your credentials.';
