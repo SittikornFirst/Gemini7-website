@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Create Science Plan</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        form {
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+            margin: 40px auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 20px ;
+            font-size: 24px;
+            color: #333;
+        }
+
+        h2 {
+            text-align: center;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .settings-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            color: black;
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .spinner {
+            display: none;
+            margin: 20px auto;
+            border: 6px solid #f3f3f3;
+            border-top: 6px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            100% { transform: rotate(360deg); }
+        }
+
+
+    </style>
+
+
+    <script>
+        const user = JSON.parse(sessionStorage.getItem('user'));
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = JSON.parse(sessionStorage.getItem('user'));
+            if (user && user.name) {
+                document.getElementById('creator').value = user.name;
+            } else {
+                alert('⚠️ Please login first.');
+                window.location.href = '/login';
+                fetchStarSystems();
+                document.getElementById('starSystem').addEventListener('change', handleStarSystemChange);
+            }
+
+        });
+
+        let allStarSystems = [];
+
+        // Fetch available star systems from the backend
+        async function fetchStarSystems() {
+            try {
+                const res = await fetch('http://localhost:8080/api/starsystems');
+                allStarSystems = await res.json();
+            } catch (error) {
+                alert('Failed to load star systems.');
+            }
+        }
+
+        function handleStarSystemChange() {
+            const selectedStarName = document.getElementById('starSystem').value;
+            const selectedStar = allStarSystems.find(star => star.name === selectedStarName);
+
+            if (selectedStar && selectedStar.month) {  // Check month exists
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(selectedStar.month).padStart(2, '0');  // Month must be 2-digits
+                const day = '10';
+
+                document.getElementById('startDate').value = `${year}-${month}-${day}T00:00`;
+                document.getElementById('endDate').value = `${year}-${month}-${String(parseInt(day) + 5).padStart(2, '0')}T23:59`;
+            } else {
+                console.warn('⚠️ Star system does not have a valid month.');
+                document.getElementById('startDate').value = '';
+                document.getElementById('endDate').value = '';
+            }
+        }
+
+
+
+        // Filter star systems based on selected telescope
+        function filterStarSystems() {
+            const telescope = document.getElementById('telescope').value;
+            const starSelect = document.getElementById('starSystem');
+
+            starSelect.innerHTML = '<option value="">-- Select Star System --</option>';
+
+            const filtered = allStarSystems.filter(star => {
+                if (telescope === 'HAWAII') return star.quadrant.startsWith('NQ');
+                if (telescope === 'CHILE') return star.quadrant.startsWith('SQ');
+                return false;
+            });
+
+            filtered.forEach(star => {
+                const opt = document.createElement('option');
+                opt.value = star.name;
+                opt.textContent = `${star.name} (Quadrant: ${star.quadrant})`;
+                starSelect.appendChild(opt);
+            });
+        }
+
+        function formatDateForBackend(dateString) {
+            const date = new Date(dateString);
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // Months are 0-based
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${day}/${month}/${year} ${hours}:${minutes}:${seconds}`;
+        }
+
+        // Save science plan
+        async function saveSciencePlan() {
+            const spinner = document.getElementById('spinner');
+            spinner.style.display = 'block';
+            const selectedStar = allStarSystems.find(star => star.name === document.getElementById('starSystem').value);
+            if (selectedStar) {
+                const selectedMonth = new Date(document.getElementById('startDate').value).getMonth() + 1;
+                if (selectedMonth !== selectedStar.month) {
+                    alert(`⚠️ Please select a start date around month ${selectedStar.month} for ${selectedStar.name}.`);
+                    spinner.style.display = 'none';
+                    return;
+                }
+            }
+
+                const plan = {
+                creator: user.name,
+                fundingInUSD: parseFloat(document.getElementById('funding').value),
+                objectives: document.getElementById('objectives').value,
+                startDate: formatDateForBackend(document.getElementById('startDate').value),
+                endDate: formatDateForBackend(document.getElementById('endDate').value),
+                telescopeLocation: document.getElementById('telescope').value,
+                starSystem: document.getElementById('starSystem').value,
+                dataProcRequirements: {
+                    fileType: document.getElementById('fileType').value,
+                    fileQuality: document.getElementById('fileQuality').value,
+                    colorType: document.getElementById('colorType').value,
+                    contrast: parseFloat(document.getElementById('contrast').value),
+                    brightness: parseFloat(document.getElementById('brightness').value),
+                    saturation: parseFloat(document.getElementById('saturation').value),
+                    highlights: parseFloat(document.getElementById('highlights').value),
+                    exposure: parseFloat(document.getElementById('exposure').value),
+                    shadows: parseFloat(document.getElementById('shadows').value),
+                    whites: parseFloat(document.getElementById('whites').value),
+                    blacks: parseFloat(document.getElementById('blacks').value),
+                    luminance: parseFloat(document.getElementById('luminance').value),
+                    hue: parseFloat(document.getElementById('hue').value)
+
+                }
+            };
+
+            try {
+                const res = await fetch('http://localhost:8080/api/plan/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(plan)
+                });
+                const data = await res.text();
+                alert('✅ ' + data);
+                window.location.href = '/homepage';
+            } catch (error) {
+                alert('Failed to save science plan.');
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', fetchStarSystems);
+    </script>
+
+</head>
+<body>
+
+<div class="spinner" id="spinner"></div>
+<form id="sciencePlanForm">
+    <h1>Create Science Plan</h1>
+
+    <div class="form-group">
+        <label>Creator Name
+        <input type="text" id="creator"  disabled></label>
+    </div>
+
+    <div class="form-group">
+        <label>Funding (USD)
+        <input type="number" step="0.01" id="funding" placeholder="e.g., 1500.50" required></label>
+    </div>
+
+    <div class="form-group">
+        <label>Objective
+        <textarea id="objectives" rows="4" placeholder="e.g., Study planetary rings, capture astronomical data." required></textarea></label>
+    </div>
+
+    <div class="form-group">
+        <label>Start Date
+        <input type="datetime-local" id="startDate" required></label>
+    </div>
+
+    <div class="form-group">
+        <label>End Date
+        <input type="datetime-local" id="endDate" required></label>
+    </div>
+
+    <div class="form-group">
+        <label>Telescope Location
+        <select id="telescope" required onchange="filterStarSystems()">
+            <option value="">-- Select Telescope --</option>
+            <option value="HAWAII">Hawaii</option>
+            <option value="CHILE">Chile</option>
+        </select></label>
+    </div>
+
+    <div class="form-group">
+        <label>Target Star System
+        <select id="starSystem" required>
+            <option value="">-- Select Star System --</option>
+        </select></label>
+    </div>
+
+    <h2>Data Processing Requirements</h2>
+
+    <div class="form-group">
+        <label>File Type
+        <select id="fileType">
+            <option>PNG</option>
+            <option>JPEG</option>
+            <option>RAW</option>
+        </select></label>
+    </div>
+
+    <div class="form-group">
+        <label>File Quality
+        <select id="fileQuality">
+            <option>Low</option>
+            <option>Fine</option>
+        </select></label>
+    </div>
+
+    <div class="form-group">
+        <label>Color Type
+        <select id="colorType">
+            <option>Color mode</option>
+            <option>B&W mode</option>
+        </select></label>
+    </div>
+
+    <div class="form-group">
+        <label>Contrast
+        <input type="number" id="contrast" step="0.1" min="0" max="5" placeholder="0.0 - 5.0" required></label>
+    </div>
+
+    <div class="form-group">
+        <label>Exposure
+        <input type="number" id="exposure" step="0.1" min="0" max="50" placeholder="0.0 - 50.0" required></label>
+    </div>
+
+    <div id="colorSettings" class="settings-group">
+        <label>Brightness
+        <input type="number" id="brightness" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+
+        <label>Saturation
+        <input type="number" id="saturation" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+
+        <label>Luminance
+        <input type="number" id="luminance" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+
+        <label>Hue
+        <input type="number" id="hue" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+    </div>
+
+    <div id="bwSettings" class="settings-group">
+        <label>Highlights
+        <input type="number" id="highlights" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+
+        <label>Shadows
+        <input type="number" id="shadows" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+
+        <label>Whites
+        <input type="number" id="whites" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+
+        <label>Blacks
+        <input type="number" id="blacks" step="0.1" min="0" max="50" placeholder="0.0 - 50.0"></label>
+    </div>
+    <button type="button" id="saveButton" onclick="saveSciencePlan()">Save Science Plan</button>
+</form>
+</body>
+</html>
